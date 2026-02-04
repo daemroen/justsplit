@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../receipt_scanner.dart'; // Import ReceiptScannerScreen
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -19,8 +20,23 @@ class HomeScreen extends StatelessWidget {
         ),
         const SizedBox(height: 30),
         ElevatedButton(
-          onPressed: () {
-            Navigator.pushNamed(context, '/receipt_scanner');
+          onPressed: () async {
+            // Wait for the result from the receipt scanner
+            final result = await Navigator.pushNamed(context, '/receipt_scanner');
+            
+            // Check if we got data back
+            if (result != null && result is Map<String, dynamic>) {
+              // Show a snackbar or handle the data
+              if (context.mounted) {
+                 ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Receipt saved from ${result['restaurantName']}! Total: ${result['totalAmount']}'),
+                    duration: const Duration(seconds: 4),
+                  ),
+                );
+                // Here you would typically save this to Firestore or update the UI state
+              }
+            }
           },
           child: const Text('Scan Receipt'),
         ),
@@ -35,14 +51,14 @@ class HomeScreen extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Recent Trips',
+          'Recent Groups',
           style: Theme.of(context).textTheme.titleLarge,
         ),
         const SizedBox(height: 10),
         Card(
           child: ListTile(
-            leading: const Icon(Icons.flight_takeoff),
-            title: const Text('Trip to Bali'),
+            leading: const Icon(Icons.group),
+            title: const Text('Bali Trip'),
             subtitle: const Text('You spent \$540'),
             trailing: const Icon(Icons.arrow_forward_ios),
             onTap: () {},

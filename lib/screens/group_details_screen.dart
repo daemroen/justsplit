@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 
 import '../models/group.dart';
-import '../models/trip.dart';
-import '../services/trip_service.dart';
 
 class GroupDetailsScreen extends StatelessWidget {
   final Group group;
@@ -12,123 +9,31 @@ class GroupDetailsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tripService = Provider.of<TripService>(context);
-
     return Scaffold(
       appBar: AppBar(
         title: Text(group.name),
       ),
-      body: StreamBuilder<List<Trip>>(
-        stream: tripService.getTrips(group.id),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text('No trips found for this group.'));
-          }
-
-          final trips = snapshot.data!;
-
-          return ListView.builder(
-            itemCount: trips.length,
-            itemBuilder: (context, index) {
-              final trip = trips[index];
-              return Card(
-                margin:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: ListTile(
-                  title: Text(trip.name),
-                  subtitle: Text(
-                      '${trip.startDate.toLocal()} - ${trip.endDate.toLocal()}'),
-                  trailing: const Icon(Icons.arrow_forward_ios),
-                  onTap: () {
-                    // Navigate to trip details screen
-                  },
-                ),
-              );
-            },
-          );
-        },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showCreateTripDialog(context, tripService, group.id),
-        tooltip: 'Create Trip',
-        child: const Icon(Icons.add),
-      ),
-    );
-  }
-
-  void _showCreateTripDialog(
-      BuildContext context, TripService tripService, String groupId) {
-    final TextEditingController nameController = TextEditingController();
-    DateTime? startDate;
-    DateTime? endDate;
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Create Trip'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(labelText: 'Trip Name'),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () async {
-                  final pickedDate = await showDatePicker(
-                    context: context,
-                    initialDate: DateTime.now(),
-                    firstDate: DateTime(2020),
-                    lastDate: DateTime(2100),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Members', style: Theme.of(context).textTheme.headlineSmall),
+            const SizedBox(height: 10),
+            Expanded(
+              child: ListView.builder(
+                itemCount: group.members.length,
+                itemBuilder: (context, index) {
+                  return ListTile(
+                    leading: const CircleAvatar(child: Icon(Icons.person)),
+                    title: Text(group.members[index]),
                   );
-                  if (pickedDate != null) {
-                    startDate = pickedDate;
-                  }
                 },
-                child: const Text('Select Start Date'),
               ),
-              const SizedBox(height: 8),
-              ElevatedButton(
-                onPressed: () async {
-                  final pickedDate = await showDatePicker(
-                    context: context,
-                    initialDate: startDate ?? DateTime.now(),
-                    firstDate: startDate ?? DateTime.now(),
-                    lastDate: DateTime(2100),
-                  );
-                  if (pickedDate != null) {
-                    endDate = pickedDate;
-                  }
-                },
-                child: const Text('Select End Date'),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                if (nameController.text.isNotEmpty &&
-                    startDate != null &&
-                    endDate != null) {
-                  tripService.createTrip(
-                      nameController.text, groupId, startDate!, endDate!);
-                  Navigator.of(context).pop();
-                }
-              },
-              child: const Text('Create'),
             ),
           ],
-        );
-      },
+        ),
+      ),
     );
   }
 }

@@ -6,7 +6,6 @@ import 'main.dart';
 import 'screens/groups_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/profile_screen.dart';
-import 'screens/trips_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -20,7 +19,6 @@ class _MainScreenState extends State<MainScreen> {
 
   static const List<Widget> _widgetOptions = <Widget>[
     HomeScreen(),
-    TripsScreen(),
     GroupsScreen(),
     ProfileScreen(),
   ];
@@ -62,10 +60,6 @@ class _MainScreenState extends State<MainScreen> {
           BottomNavigationBarItem(
             icon: Icon(Icons.home),
             label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.business_center),
-            label: 'Trips',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.group),

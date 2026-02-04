@@ -18,6 +18,7 @@ class _ReceiptScannerScreenState extends State<ReceiptScannerScreen> {
   Map<String, dynamic>? _receiptData; // Changed to Map to hold structured data
   bool _isLoading = false;
   String? _errorMessage;
+  String? _tokenUsage; // State variable for token usage
 
   Future<void> _pickImage(ImageSource source) async {
     final picker = ImagePicker();
@@ -28,6 +29,7 @@ class _ReceiptScannerScreenState extends State<ReceiptScannerScreen> {
         _image = pickedFile;
         _receiptData = null;
         _errorMessage = null;
+        _tokenUsage = null;
       });
     }
   }
@@ -41,6 +43,7 @@ class _ReceiptScannerScreenState extends State<ReceiptScannerScreen> {
       _isLoading = true;
       _receiptData = null;
       _errorMessage = null;
+      _tokenUsage = null;
     });
 
     try {
@@ -60,7 +63,13 @@ class _ReceiptScannerScreenState extends State<ReceiptScannerScreen> {
             "description": "string",
             "quantity": number,
             "unitPrice": number,
-            "totalPrice": number
+            "totalPrice": number,
+            "fees": [
+              {
+                "description": "string",
+                "amount": number
+              }
+            ],
             "translations": [
               {
                 "language": "string",
@@ -74,7 +83,14 @@ class _ReceiptScannerScreenState extends State<ReceiptScannerScreen> {
         "tip": number,
         "totalAmount": number
       }
-      If a field is not found, use null or 0 as appropriate. Translate to languages nb-NO, en-US
+      If a field is not found, use null or 0 as appropriate. Translate to languages nb-NO, en-US.
+      
+      LOGIC FOR FEES:
+      Check if the tax or other fees are already included in the unit prices.
+      1. Sum up all the "totalPrice" of the items.
+      2. If this sum is approximately equal to the "totalAmount" (minus any tip), then tax is ALREADY INCLUDED. In this case, the "fees" list for each item MUST BE EMPTY. Do not add tax as a fee.
+      3. ONLY add tax or other charges to the "fees" list of items if the sum of item prices is LESS than the total amount (minus tip), and the missing amount corresponds to the tax/fee.
+      4. If adding fees, distribute them proportionally based on the item's price.
       ''';
 
       final content = [
@@ -87,6 +103,12 @@ class _ReceiptScannerScreenState extends State<ReceiptScannerScreen> {
       final response = await model.generateContent(content);
       final responseText = response.text;
 
+      // Extract token usage if available
+      String? usageInfo;
+      if (response.usageMetadata != null) {
+        usageInfo = 'Tokens - Input: ${response.usageMetadata!.promptTokenCount}, Output: ${response.usageMetadata!.candidatesTokenCount}, Total: ${response.usageMetadata!.totalTokenCount}';
+      }
+
       if (responseText != null) {
         // Clean up markdown if Gemini decides to add it anyway
         final cleanJson = responseText.replaceAll('```json', '').replaceAll('```', '').trim();
@@ -95,15 +117,18 @@ class _ReceiptScannerScreenState extends State<ReceiptScannerScreen> {
           final decodedData = jsonDecode(cleanJson);
           setState(() {
             _receiptData = decodedData;
+            _tokenUsage = usageInfo;
           });
         } catch (e) {
            setState(() {
             _errorMessage = 'Failed to parse receipt data. Raw response: $responseText';
+            _tokenUsage = usageInfo;
           });
         }
       } else {
          setState(() {
             _errorMessage = 'No response received from AI.';
+            _tokenUsage = usageInfo;
           });
       }
 
@@ -115,6 +140,12 @@ class _ReceiptScannerScreenState extends State<ReceiptScannerScreen> {
       setState(() {
         _isLoading = false;
       });
+    }
+  }
+
+  void _saveReceipt() {
+    if (_receiptData != null) {
+       Navigator.pop(context, _receiptData);
     }
   }
 
@@ -244,12 +275,60 @@ class _ReceiptScannerScreenState extends State<ReceiptScannerScreen> {
                           ...(_receiptData!['items'] as List).map((item) {
                             return Padding(
                               padding: const EdgeInsets.symmetric(vertical: 4.0),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                              child: Column(
                                 children: [
-                                  Text('${item['quantity']}x ', style: const TextStyle(fontWeight: FontWeight.bold)),
-                                  Expanded(child: Text(item['description'] ?? '')),
-                                  Text('${item['totalPrice']}'),
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text('${item['quantity']}x ', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(item['description'] ?? ''),
+                                            if (item['translations'] != null)
+                                              ...(item['translations'] as List).map((t) => 
+                                                Text(
+                                                  '${t['language']}: ${t['translation']}',
+                                                  style: TextStyle(
+                                                    fontSize: 12, 
+                                                    color: Theme.of(context).colorScheme.secondary,
+                                                    fontStyle: FontStyle.italic
+                                                  ),
+                                                )
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                      Text('${item['totalPrice']}'),
+                                    ],
+                                  ),
+                                  // Display fees if they exist
+                                  if (item['fees'] != null)
+                                    ...(item['fees'] as List).map((fee) {
+                                      return Padding(
+                                        padding: const EdgeInsets.only(left: 24.0, top: 2.0),
+                                        child: Row(
+                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Text(
+                                              '+ ${fee['description']}',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: Theme.of(context).colorScheme.secondary,
+                                              ),
+                                            ),
+                                            Text(
+                                              '${fee['amount']}',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: Theme.of(context).colorScheme.secondary,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    }),
                                 ],
                               ),
                             );
@@ -264,14 +343,25 @@ class _ReceiptScannerScreenState extends State<ReceiptScannerScreen> {
                     ),
                   ),
                 ),
+                
+                // Token Usage Display
+                if (_tokenUsage != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: Text(
+                      _tokenUsage!,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.secondary,
+                        fontStyle: FontStyle.italic,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+
                 const SizedBox(height: 20),
                 FilledButton(
-                  onPressed: () {
-                    // TODO: Return this data to the previous screen or save to Firestore
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Receipt data saved!')),
-                    );
-                  },
+                  onPressed: _saveReceipt,
                   style: FilledButton.styleFrom(backgroundColor: Colors.green),
                   child: const Text('Save Receipt'),
                 ),

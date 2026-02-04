@@ -7,7 +7,6 @@ import 'auth_service.dart';
 import 'auth_wrapper.dart';
 import 'firebase_options.dart';
 import 'services/group_service.dart';
-import 'services/trip_service.dart';
 import 'receipt_scanner.dart'; // Import the receipt scanner
 
 void main() async {
@@ -23,9 +22,6 @@ void main() async {
         ),
         Provider<GroupService>(
           create: (_) => GroupService(),
-        ),
-        Provider<TripService>(
-          create: (_) => TripService(),
         ),
         ChangeNotifierProvider(
           create: (context) => ThemeProvider(),
