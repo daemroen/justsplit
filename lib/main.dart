@@ -36,14 +36,20 @@ void main() async {
   );
 }
 
+// ThemeProvider class to manage the theme state
 class ThemeProvider with ChangeNotifier {
-  ThemeMode _themeMode = ThemeMode.system;
+  ThemeMode _themeMode = ThemeMode.system; // Default to system theme
 
   ThemeMode get themeMode => _themeMode;
 
   void toggleTheme() {
     _themeMode =
         _themeMode == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
+    notifyListeners();
+  }
+
+  void setSystemTheme() {
+    _themeMode = ThemeMode.system;
     notifyListeners();
   }
 }
@@ -55,14 +61,16 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     const Color primarySeedColor = Colors.blue;
 
+    // Define a common TextTheme
     final TextTheme appTextTheme = TextTheme(
       displayLarge:
-          GoogleFonts.poppins(fontSize: 57, fontWeight: FontWeight.bold),
+          GoogleFonts.oswald(fontSize: 57, fontWeight: FontWeight.bold),
       titleLarge:
           GoogleFonts.poppins(fontSize: 22, fontWeight: FontWeight.w500),
       bodyMedium: GoogleFonts.poppins(fontSize: 14),
     );
 
+    // Light Theme
     final ThemeData lightTheme = ThemeData(
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(
@@ -74,7 +82,7 @@ class MyApp extends StatelessWidget {
         backgroundColor: primarySeedColor,
         foregroundColor: Colors.white,
         titleTextStyle:
-            GoogleFonts.poppins(fontSize: 24, fontWeight: FontWeight.bold),
+            GoogleFonts.oswald(fontSize: 24, fontWeight: FontWeight.bold),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
@@ -89,6 +97,7 @@ class MyApp extends StatelessWidget {
       ),
     );
 
+    // Dark Theme
     final ThemeData darkTheme = ThemeData(
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(
@@ -100,7 +109,7 @@ class MyApp extends StatelessWidget {
         backgroundColor: Colors.grey[900],
         foregroundColor: Colors.white,
         titleTextStyle:
-            GoogleFonts.poppins(fontSize: 24, fontWeight: FontWeight.bold),
+            GoogleFonts.oswald(fontSize: 24, fontWeight: FontWeight.bold),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
@@ -124,7 +133,7 @@ class MyApp extends StatelessWidget {
           themeMode: themeProvider.themeMode,
           home: const AuthWrapper(),
           routes: {
-            '/receipt_scanner': (context) => const ReceiptScanner(),
+            '/receipt_scanner': (context) => const ReceiptScannerScreen(),
           },
         );
       },
