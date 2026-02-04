@@ -34,8 +34,17 @@ class HomeScreen extends StatelessWidget {
             final result = await Navigator.pushNamed(context, '/receipt_scanner');
             
             // Check if we got data back
-            if (result != null && result is Map<String, dynamic> && context.mounted) {
-              _showGroupSelectionDialog(context, result);
+            // We use 'is Map' to be safer with types coming from jsonDecode
+            if (result != null && result is Map && context.mounted) {
+              // Cast to Map<String, dynamic> safely
+              try {
+                final Map<String, dynamic> typedResult = Map<String, dynamic>.from(result);
+                _showGroupSelectionDialog(context, typedResult);
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error processing receipt data: $e')),
+                );
+              }
             }
           },
           child: const Text('Scan Receipt'),
@@ -56,34 +65,63 @@ class HomeScreen extends StatelessWidget {
       builder: (context) {
         return AlertDialog(
           title: const Text('Select Group'),
-          content: StreamBuilder<List<Group>>(
-            stream: groupService.getGroups(),
-            builder: (context, snapshot) {
-               if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                return const Text('No groups found. Please create a group first.');
-              }
-              final groups = snapshot.data!;
-              return SizedBox(
-                width: double.maxFinite,
-                child: ListView.builder(
+          content: SizedBox( // Limit size to avoid layout issues
+            width: double.maxFinite,
+            child: StreamBuilder<List<Group>>(
+              stream: groupService.getGroups(),
+              builder: (context, snapshot) {
+                 if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const SizedBox(
+                    height: 100,
+                    child: Center(child: CircularProgressIndicator())
+                  );
+                }
+                if (snapshot.hasError) {
+                  return Text('Error: ${snapshot.error}');
+                }
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('No groups found. Please create a group first.'),
+                      const SizedBox(height: 10),
+                      ElevatedButton(
+                        onPressed: () {
+                          // Navigate to groups screen or show create dialog
+                          Navigator.pop(context);
+                          // Ideally navigate to Groups tab, but for now just close
+                        },
+                         child: const Text('Close'),
+                      )
+                    ],
+                  );
+                }
+                final groups = snapshot.data!;
+                return ListView.builder(
                   shrinkWrap: true,
                   itemCount: groups.length,
                   itemBuilder: (context, index) {
                     final group = groups[index];
                     return ListTile(
+                      leading: const CircleAvatar(child: Icon(Icons.group)),
                       title: Text(group.name),
+                      subtitle: Text('${group.members.length} members'),
                       onTap: () async {
                          try {
+                           // Show loading indicator
+                           showDialog(
+                             context: context, 
+                             barrierDismissible: false,
+                             builder: (ctx) => const Center(child: CircularProgressIndicator())
+                           );
+
                            final receipt = Receipt(
-                             id: const Uuid().v4(), // Generate a new ID
+                             id: const Uuid().v4(),
                              groupId: group.id,
                              restaurantName: receiptData['restaurantName'] ?? 'Unknown',
                              date: DateTime.tryParse(receiptData['date'] ?? '') ?? DateTime.now(),
                              items: (receiptData['items'] as List<dynamic>?)
-                                     ?.map((item) => ReceiptItem.fromMap(item))
+                                     ?.map((item) => ReceiptItem.fromMap(item as Map<String, dynamic>))
                                      .toList() ??
                                  [],
                              subtotal: (receiptData['subtotal'] as num?)?.toDouble() ?? 0.0,
@@ -99,14 +137,20 @@ class HomeScreen extends StatelessWidget {
                            await receiptService.addReceipt(receipt);
                            
                            if (context.mounted) {
-                             Navigator.pop(context); // Close dialog
+                             Navigator.pop(context); // Close loading
+                             Navigator.pop(context); // Close selection dialog
+                             
                              ScaffoldMessenger.of(context).showSnackBar(
-                               SnackBar(content: Text('Receipt saved to ${group.name}!')),
+                               SnackBar(
+                                 content: Text('Receipt saved to ${group.name}!'),
+                                 backgroundColor: Colors.green,
+                               ),
                              );
                            }
                          } catch (e) {
                            if (context.mounted) {
-                             Navigator.pop(context);
+                             Navigator.pop(context); // Close loading
+                             // Don't close selection dialog so they can try again
                              ScaffoldMessenger.of(context).showSnackBar(
                                SnackBar(content: Text('Error saving receipt: $e')),
                              );
@@ -115,9 +159,9 @@ class HomeScreen extends StatelessWidget {
                       },
                     );
                   },
-                ),
-              );
-            },
+                );
+              },
+            ),
           ),
           actions: [
             TextButton(
