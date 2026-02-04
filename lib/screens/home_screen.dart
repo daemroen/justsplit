@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-import 'auth_service.dart';
+import '../auth_service.dart'; // Fixed import path
 import '../models/receipt.dart';
 import '../services/receipt_service.dart';
 import '../models/group.dart';
@@ -130,7 +130,8 @@ class HomeScreen extends StatelessWidget {
                              globalFees: List<Map<String, dynamic>>.from(receiptData['fees'] ?? []),
                              globalDiscounts: List<Map<String, dynamic>>.from(receiptData['discounts'] ?? []),
                              totalAmount: (receiptData['totalAmount'] as num?)?.toDouble() ?? 0.0,
-                             uploadedBy: authService.user?.email ?? 'Unknown',
+                             // Use currentUser instead of user
+                             uploadedBy: authService.currentUser?.email ?? 'Unknown',
                              createdAt: DateTime.now(),
                            );
                            
