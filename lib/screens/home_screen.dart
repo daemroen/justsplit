@@ -1,4 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:uuid/uuid.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+import 'auth_service.dart';
+import '../models/receipt.dart';
+import '../services/receipt_service.dart';
+import '../models/group.dart';
+import '../services/group_service.dart';
 import '../receipt_scanner.dart'; // Import ReceiptScannerScreen
 
 class HomeScreen extends StatelessWidget {
@@ -25,17 +34,8 @@ class HomeScreen extends StatelessWidget {
             final result = await Navigator.pushNamed(context, '/receipt_scanner');
             
             // Check if we got data back
-            if (result != null && result is Map<String, dynamic>) {
-              // Show a snackbar or handle the data
-              if (context.mounted) {
-                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Receipt saved from ${result['restaurantName']}! Total: ${result['totalAmount']}'),
-                    duration: const Duration(seconds: 4),
-                  ),
-                );
-                // Here you would typically save this to Firestore or update the UI state
-              }
+            if (result != null && result is Map<String, dynamic> && context.mounted) {
+              _showGroupSelectionDialog(context, result);
             }
           },
           child: const Text('Scan Receipt'),
@@ -43,6 +43,90 @@ class HomeScreen extends StatelessWidget {
         const SizedBox(height: 30),
         _buildRecentActivity(context),
       ],
+    );
+  }
+
+  void _showGroupSelectionDialog(BuildContext context, Map<String, dynamic> receiptData) {
+    final groupService = Provider.of<GroupService>(context, listen: false);
+    final receiptService = Provider.of<ReceiptService>(context, listen: false);
+    final authService = Provider.of<AuthService>(context, listen: false);
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Select Group'),
+          content: StreamBuilder<List<Group>>(
+            stream: groupService.getGroups(),
+            builder: (context, snapshot) {
+               if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                return const Text('No groups found. Please create a group first.');
+              }
+              final groups = snapshot.data!;
+              return SizedBox(
+                width: double.maxFinite,
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: groups.length,
+                  itemBuilder: (context, index) {
+                    final group = groups[index];
+                    return ListTile(
+                      title: Text(group.name),
+                      onTap: () async {
+                         try {
+                           final receipt = Receipt(
+                             id: const Uuid().v4(), // Generate a new ID
+                             groupId: group.id,
+                             restaurantName: receiptData['restaurantName'] ?? 'Unknown',
+                             date: DateTime.tryParse(receiptData['date'] ?? '') ?? DateTime.now(),
+                             items: (receiptData['items'] as List<dynamic>?)
+                                     ?.map((item) => ReceiptItem.fromMap(item))
+                                     .toList() ??
+                                 [],
+                             subtotal: (receiptData['subtotal'] as num?)?.toDouble() ?? 0.0,
+                             tax: (receiptData['tax'] as num?)?.toDouble() ?? 0.0,
+                             tip: (receiptData['tip'] as num?)?.toDouble() ?? 0.0,
+                             globalFees: List<Map<String, dynamic>>.from(receiptData['fees'] ?? []),
+                             globalDiscounts: List<Map<String, dynamic>>.from(receiptData['discounts'] ?? []),
+                             totalAmount: (receiptData['totalAmount'] as num?)?.toDouble() ?? 0.0,
+                             uploadedBy: authService.user?.email ?? 'Unknown',
+                             createdAt: DateTime.now(),
+                           );
+                           
+                           await receiptService.addReceipt(receipt);
+                           
+                           if (context.mounted) {
+                             Navigator.pop(context); // Close dialog
+                             ScaffoldMessenger.of(context).showSnackBar(
+                               SnackBar(content: Text('Receipt saved to ${group.name}!')),
+                             );
+                           }
+                         } catch (e) {
+                           if (context.mounted) {
+                             Navigator.pop(context);
+                             ScaffoldMessenger.of(context).showSnackBar(
+                               SnackBar(content: Text('Error saving receipt: $e')),
+                             );
+                           }
+                         }
+                      },
+                    );
+                  },
+                ),
+              );
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+          ],
+        );
+      },
     );
   }
 
