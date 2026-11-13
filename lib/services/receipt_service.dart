@@ -4,12 +4,10 @@ import '../models/receipt.dart';
 class ReceiptService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Add a new receipt
   Future<void> addReceipt(Receipt receipt) async {
     await _firestore.collection('receipts').add(receipt.toMap());
   }
 
-  // Get receipts for a specific group
   Stream<List<Receipt>> getReceiptsForGroup(String groupId) {
     return _firestore
         .collection('receipts')
@@ -21,12 +19,34 @@ class ReceiptService {
     });
   }
 
-  // Get a single receipt by ID
+  Stream<List<Receipt>> getRecentReceiptsForUser(String userId,
+      {int limit = 10}) {
+    return _firestore
+        .collection('receipts')
+        .where('uploadedBy', isEqualTo: userId)
+        .orderBy('createdAt', descending: true)
+        .limit(limit)
+        .snapshots()
+        .map((snapshot) =>
+            snapshot.docs.map((doc) => Receipt.fromFirestore(doc)).toList());
+  }
+
   Future<Receipt?> getReceipt(String id) async {
     final doc = await _firestore.collection('receipts').doc(id).get();
     if (doc.exists) {
       return Receipt.fromFirestore(doc);
     }
     return null;
+  }
+
+  Future<void> updateReceipt(String receiptId, Receipt receipt) async {
+    await _firestore
+        .collection('receipts')
+        .doc(receiptId)
+        .set(receipt.toMap());
+  }
+
+  Future<void> deleteReceipt(String receiptId) async {
+    await _firestore.collection('receipts').doc(receiptId).delete();
   }
 }

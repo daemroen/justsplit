@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'auth_service.dart';
 import 'login_screen.dart';
 import 'main_screen.dart';
+import 'services/user_service.dart';
 
 class AuthWrapper extends StatelessWidget {
   const AuthWrapper({super.key});
@@ -19,6 +20,10 @@ class AuthWrapper extends StatelessWidget {
           return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasData) {
+          // Ensure user profile exists in Firestore
+          final userService =
+              Provider.of<UserService>(context, listen: false);
+          userService.ensureUserProfile(snapshot.data!);
           return const MainScreen();
         } else {
           return const LoginScreen();

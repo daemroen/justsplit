@@ -7,8 +7,12 @@ import 'auth_service.dart';
 import 'auth_wrapper.dart';
 import 'firebase_options.dart';
 import 'services/group_service.dart';
-import 'services/receipt_service.dart'; // Import ReceiptService
-import 'receipt_scanner.dart'; // Import the receipt scanner
+import 'services/allocation_service.dart';
+import 'services/receipt_service.dart';
+import 'services/settlement_service.dart';
+import 'services/split_calculation_service.dart';
+import 'services/user_service.dart';
+import 'receipt_scanner.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,8 +28,20 @@ void main() async {
         Provider<GroupService>(
           create: (_) => GroupService(),
         ),
-        Provider<ReceiptService>( // Provide ReceiptService
+        Provider<ReceiptService>(
           create: (_) => ReceiptService(),
+        ),
+        Provider<UserService>(
+          create: (_) => UserService(),
+        ),
+        Provider<AllocationService>(
+          create: (_) => AllocationService(),
+        ),
+        Provider<SettlementService>(
+          create: (_) => SettlementService(),
+        ),
+        Provider<SplitCalculationService>(
+          create: (_) => SplitCalculationService(),
         ),
         ChangeNotifierProvider(
           create: (context) => ThemeProvider(),

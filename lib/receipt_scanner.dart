@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:typed_data';
+
 import 'package:flutter/foundation.dart'; // Nødvendig for kIsWeb
 import 'package:flutter/material.dart';
 import 'package:firebase_ai/firebase_ai.dart';
@@ -114,7 +114,7 @@ class _ReceiptScannerScreenState extends State<ReceiptScannerScreen>
 
       final content = [
         Content.multi([
-          TextPart(prompt),
+          const TextPart(prompt),
           InlineDataPart('image/jpeg', imageBytes),
         ])
       ];
@@ -627,7 +627,7 @@ class _ReceiptScannerScreenState extends State<ReceiptScannerScreen>
             return Stack(
               children: [
                 // Semi-transparent overlay to make the scan line pop
-                Container(color: Colors.black.withOpacity(0.1)),
+                Container(color: Colors.black.withAlpha(25)),
 
                 // The scanning line
                 Positioned(
@@ -643,12 +643,12 @@ class _ReceiptScannerScreenState extends State<ReceiptScannerScreen>
                           color: Theme.of(context)
                               .colorScheme
                               .primary
-                              .withOpacity(0.8),
+                              .withAlpha(204),
                           blurRadius: 10.0,
                           spreadRadius: 2.0,
                         ),
                         BoxShadow(
-                          color: Colors.white.withOpacity(0.5),
+                          color: Colors.white.withAlpha(127),
                           blurRadius: 5.0,
                           spreadRadius: 0.0,
                         ),
